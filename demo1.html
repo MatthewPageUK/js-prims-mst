@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Network MST with Prim's Algorithm - by Matthew Page</title>
+    <style>
+        body { padding: 0px; margin: 0px; font-family: Arial;}
+        canvas {
+            position: relative;
+            box-sizing: border-box;
+            background-image: url('./gfx/map.jpg');
+            background-size: contain;
+            padding: 0;
+            margin: auto;
+            display: block;
+        }
+        #controls {
+            box-sizing: border-box;
+            position: fixed;
+            top: 5px;
+            right: 5px;
+            padding: 10px;
+            background-color: rgba(238, 238, 238, 0.9);
+            box-shadow: inset -2px -2px 0px rgba(0, 0, 0, 0.3), inset 2px 2px 0px rgba(255, 255, 255, 0.3);
+        }
+        #restart { display: none; }
+        p.by { padding: 0px; margin: 0px; font-size: 0.7rem; text-align: right;}
+        p.title { padding: 0px; margin: 0 0 5px 0; font-weight: bold;}
+        p.links { padding: 0px; margin: 5px 0 0 15px; font-size: 0.7rem;}
+
+        @media only screen and (max-width: 900px) {
+          #controls {
+              position: relative;
+          }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="map"></canvas>
+    <div id="controls">
+        <p class="title">Solving Minimum Spanning Tree<br>with Prim's Algorithm</p>
+        <audio id="atmosphere" controls>
+            <source src="./sfx/intro.mp3" type="audio/mpeg">
+        </audio>
+        <p class="links">
+            <span id="playtostart">Click play to start</span>
+            <a id="restart" href="javascript:location.reload()">Restart</a>
+        </p>
+        <p class="by">By <a href="http://mjp.co" target="_blank">Matthew Page</a> - Feb 2019</p>
+    </div>
+    <script>
+        class Place {
+            constructor(name, x, y, id) {
+                this.id = id;
+                this.name = name;
+                this.x = x;
+                this.y = y;
+                this.edges = [];
+                this.mstReached = false;
+                this.mstUnreached = true;
+
+            }
+        }
+        class Edge {
+            constructor(node1, node2, id) {
+                this.id = id;
+                this.node1 = node1;
+                this.node2 = node2;
+                this.mst = false;
+            }
+            get distance() {
+                let dx = this.node1.x - this.node2.x;
+                let dy = this.node1.y - this.node2.y;
+                return Math.sqrt( dx*dx + dy*dy );
+            }
+        }
+        let edges = [];
+        let edgeData = [{"node1":{"name":"Rougham","x":283,"y":220,"id":6},"node2":{"name":"Litcham","x":485,"y":318,"id":8}},{"node1":{"name":"Rougham","x":283,"y":220,"id":6},"node2":{"name":"Great Massingham","x":216,"y":148,"id":3}},{"node1":{"name":"Rougham","x":283,"y":220,"id":6},"node2":{"name":"Weasenham St Peter","x":383,"y":179,"id":5}},{"node1":{"name":"Rougham","x":283,"y":220,"id":6},"node2":{"name":"Castle Acre","x":260,"y":368,"id":45}},{"node1":{"name":"Rougham","x":283,"y":220,"id":6},"node2":{"name":"Gayton Thorpe","x":30,"y":273,"id":7}},{"node1":{"name":"Harpley","x":181,"y":40,"id":1},"node2":{"name":"Little Massingham","x":208,"y":104,"id":2}},{"node1":{"name":"Harpley","x":181,"y":40,"id":1},"node2":{"name":"Toftrees","x":553,"y":15,"id":47}},{"node1":{"name":"Little Massingham","x":208,"y":104,"id":2},"node2":{"name":"Great Massingham","x":216,"y":148,"id":3}},{"node1":{"name":"Weasenham St Peter","x":383,"y":179,"id":5},"node2":{"name":"West Raynham","x":498,"y":81,"id":4}},{"node1":{"name":"Toftrees","x":553,"y":15,"id":47},"node2":{"name":"West Raynham","x":498,"y":81,"id":4}},{"node1":{"name":"Toftrees","x":553,"y":15,"id":47},"node2":{"name":"Great Ryeburgh","x":708,"y":25,"id":42}},{"node1":{"name":"Great Massingham","x":216,"y":148,"id":3},"node2":{"name":"Weasenham St Peter","x":383,"y":179,"id":5}},{"node1":{"name":"Toftrees","x":553,"y":15,"id":47},"node2":{"name":"Whissonet","x":532,"y":126,"id":12}},{"node1":{"name":"Whissonet","x":532,"y":126,"id":12},"node2":{"name":"Tittleshall","x":507,"y":204,"id":9}},{"node1":{"name":"Whissonet","x":532,"y":126,"id":12},"node2":{"name":"Gateley","x":667,"y":127,"id":13}},{"node1":{"name":"Tittleshall","x":507,"y":204,"id":9},"node2":{"name":"Litcham","x":485,"y":318,"id":8}},{"node1":{"name":"Gateley","x":667,"y":127,"id":13},"node2":{"name":"Great Ryeburgh","x":708,"y":25,"id":42}},{"node1":{"name":"Mileham","x":581,"y":264,"id":10},"node2":{"name":"Litcham","x":485,"y":318,"id":8}},{"node1":{"name":"Litcham","x":485,"y":318,"id":8},"node2":{"name":"Great Dunham","x":432,"y":420,"id":31}},{"node1":{"name":"Litcham","x":485,"y":318,"id":8},"node2":{"name":"Beeston","x":559,"y":395,"id":30}},{"node1":{"name":"Litcham","x":485,"y":318,"id":8},"node2":{"name":"Longham","x":629,"y":366,"id":29}},{"node1":{"name":"Gayton Thorpe","x":30,"y":273,"id":7},"node2":{"name":"West Acre","x":141,"y":372,"id":44}},{"node1":{"name":"West Acre","x":141,"y":372,"id":44},"node2":{"name":"Narbourough","x":79,"y":440,"id":41}},{"node1":{"name":"West Acre","x":141,"y":372,"id":44},"node2":{"name":"Castle Acre","x":260,"y":368,"id":45}},{"node1":{"name":"West Acre","x":141,"y":372,"id":44},"node2":{"name":"South Acre","x":241,"y":409,"id":46}},{"node1":{"name":"South Acre","x":241,"y":409,"id":46},"node2":{"name":"Castle Acre","x":260,"y":368,"id":45}},{"node1":{"name":"Castle Acre","x":260,"y":368,"id":45},"node2":{"name":"Litcham","x":485,"y":318,"id":8}},{"node1":{"name":"South Acre","x":241,"y":409,"id":46},"node2":{"name":"Swaffham","x":266,"y":557,"id":50}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"name":"Narbourough","x":79,"y":440,"id":41}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"name":"Necton","x":439,"y":548,"id":43}},{"node1":{"name":"Necton","x":439,"y":548,"id":43},"node2":{"name":"Great Dunham","x":432,"y":420,"id":31}},{"node1":{"name":"Great Dunham","x":432,"y":420,"id":31},"node2":{"name":"Little Fransham","x":528,"y":486,"id":32}},{"node1":{"name":"Necton","x":439,"y":548,"id":43},"node2":{"name":"Little Fransham","x":528,"y":486,"id":32}},{"node1":{"name":"Little Fransham","x":528,"y":486,"id":32},"node2":{"name":"Beeston","x":559,"y":395,"id":30}},{"node1":{"name":"Little Fransham","x":528,"y":486,"id":32},"node2":{"name":"Scarning","x":649,"y":492,"id":33}},{"node1":{"name":"Little Fransham","x":528,"y":486,"id":32},"node2":{"name":"Longham","x":629,"y":366,"id":29}},{"node1":{"name":"Scarning","x":649,"y":492,"id":33},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"name":"Scarning","x":649,"y":492,"id":33},"node2":{"name":"Yaxham","x":850,"y":548,"id":35}},{"node1":{"name":"Scarning","x":649,"y":492,"id":33},"node2":{"name":"Longham","x":629,"y":366,"id":29}},{"node1":{"name":"Yaxham","x":850,"y":548,"id":35},"node2":{"name":"Mattishall","x":996,"y":540,"id":36}},{"node1":{"name":"Yaxham","x":850,"y":548,"id":35},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"name":"Mattishall","x":996,"y":540,"id":36},"node2":{"name":"Honingham","x":1126,"y":537,"id":38}},{"node1":{"name":"Honingham","x":1126,"y":537,"id":38},"node2":{"name":"Easton","x":1256,"y":547,"id":49}},{"node1":{"name":"Honingham","x":1126,"y":537,"id":38},"node2":{"name":"Hockering","x":1049,"y":481,"id":37}},{"node1":{"name":"Honingham","x":1126,"y":537,"id":38},"node2":{"name":"Weston Longville","x":1186,"y":409,"id":39}},{"node1":{"name":"Easton","x":1256,"y":547,"id":49},"node2":{"name":"Taverham","x":1322,"y":468,"id":40}},{"node1":{"name":"Taverham","x":1322,"y":468,"id":40},"node2":{"name":"Weston Longville","x":1186,"y":409,"id":39}},{"node1":{"name":"Taverham","x":1322,"y":468,"id":40},"node2":{"name":"Swannington","x":1218,"y":301,"id":22}},{"node1":{"name":"Taverham","x":1322,"y":468,"id":40},"node2":{"name":"Cawston","x":1262,"y":154,"id":21}},{"node1":{"name":"Cawston","x":1262,"y":154,"id":21},"node2":{"name":"Salle","x":1190,"y":135,"id":20}},{"node1":{"name":"Salle","x":1190,"y":135,"id":20},"node2":{"name":"Reepham","x":1147,"y":191,"id":19}},{"node1":{"name":"Reepham","x":1147,"y":191,"id":19},"node2":{"name":"Swannington","x":1218,"y":301,"id":22}},{"node1":{"name":"Reepham","x":1147,"y":191,"id":19},"node2":{"name":"Foxley","x":956,"y":221,"id":17}},{"node1":{"name":"Reepham","x":1147,"y":191,"id":19},"node2":{"name":"Lenwade","x":1152,"y":323,"id":23}},{"node1":{"name":"Swannington","x":1218,"y":301,"id":22},"node2":{"name":"Lenwade","x":1152,"y":323,"id":23}},{"node1":{"name":"Lenwade","x":1152,"y":323,"id":23},"node2":{"name":"Weston Longville","x":1186,"y":409,"id":39}},{"node1":{"name":"Lenwade","x":1152,"y":323,"id":23},"node2":{"name":"Taverham","x":1322,"y":468,"id":40}},{"node1":{"name":"Lenwade","x":1152,"y":323,"id":23},"node2":{"name":"Lyng","x":1044,"y":336,"id":24}},{"node1":{"name":"Reepham","x":1147,"y":191,"id":19},"node2":{"name":"Lyng","x":1044,"y":336,"id":24}},{"node1":{"name":"Lyng","x":1044,"y":336,"id":24},"node2":{"name":"Elsing","x":1026,"y":374,"id":25}},{"node1":{"name":"Elsing","x":1026,"y":374,"id":25},"node2":{"name":"Hockering","x":1049,"y":481,"id":37}},{"node1":{"name":"Hockering","x":1049,"y":481,"id":37},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"name":"Lenwade","x":1152,"y":323,"id":23},"node2":{"name":"Foxley","x":956,"y":221,"id":17}},{"node1":{"name":"Foxley","x":956,"y":221,"id":17},"node2":{"name":"Twyford","x":896,"y":137,"id":15}},{"node1":{"name":"Twyford","x":896,"y":137,"id":15},"node2":{"name":"Foulsham","x":947,"y":104,"id":16}},{"node1":{"name":"Foulsham","x":947,"y":104,"id":16},"node2":{"name":"Wood Norton","x":851,"y":21,"id":48}},{"node1":{"name":"Wood Norton","x":851,"y":21,"id":48},"node2":{"name":"Guist","x":831,"y":83,"id":14}},{"node1":{"name":"Guist","x":831,"y":83,"id":14},"node2":{"name":"Twyford","x":896,"y":137,"id":15}},{"node1":{"name":"Great Ryeburgh","x":708,"y":25,"id":42},"node2":{"name":"Wood Norton","x":851,"y":21,"id":48}},{"node1":{"name":"Guist","x":831,"y":83,"id":14},"node2":{"name":"Great Ryeburgh","x":708,"y":25,"id":42}},{"node1":{"name":"Guist","x":831,"y":83,"id":14},"node2":{"name":"North Elmham","x":789,"y":232,"id":18}},{"node1":{"name":"Gateley","x":667,"y":127,"id":13},"node2":{"name":"North Elmham","x":789,"y":232,"id":18}},{"node1":{"name":"North Elmham","x":789,"y":232,"id":18},"node2":{"name":"Foxley","x":956,"y":221,"id":17}},{"node1":{"name":"Foxley","x":956,"y":221,"id":17},"node2":{"name":"Swanton Morley","x":895,"y":342,"id":26}},{"node1":{"name":"Mileham","x":581,"y":264,"id":10},"node2":{"name":"East Bilney","x":681,"y":268,"id":11}},{"node1":{"name":"East Bilney","x":681,"y":268,"id":11},"node2":{"name":"Gateley","x":667,"y":127,"id":13}},{"node1":{"name":"East Bilney","x":681,"y":268,"id":11},"node2":{"name":"North Elmham","x":789,"y":232,"id":18}},{"node1":{"name":"East Bilney","x":681,"y":268,"id":11},"node2":{"name":"Beetley","x":748,"y":337,"id":28}},{"node1":{"name":"Longham","x":629,"y":366,"id":29},"node2":{"name":"Beetley","x":748,"y":337,"id":28}},{"node1":{"name":"Beetley","x":748,"y":337,"id":28},"node2":{"name":"Hoe","x":785,"y":367,"id":27}},{"node1":{"name":"Hoe","x":785,"y":367,"id":27},"node2":{"name":"North Elmham","x":789,"y":232,"id":18}},{"node1":{"name":"Hoe","x":785,"y":367,"id":27},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"name":"Swanton Morley","x":895,"y":342,"id":26},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"name":"Beeston","x":559,"y":395,"id":30},"node2":{"name":"Longham","x":629,"y":366,"id":29}},{"node1":{"name":"Weasenham St Peter","x":383,"y":179,"id":5},"node2":{"name":"Castle Acre","x":260,"y":368,"id":45}},{"node1":{"name":"Weasenham St Peter","x":383,"y":179,"id":5},"node2":{"name":"Litcham","x":485,"y":318,"id":8}},{"node1":{"name":"Cawston","x":1262,"y":154,"id":21},"node2":{"id":125,"name":"Oulton","x":1244,"y":31}},{"node1":{"id":125,"name":"Oulton","x":1244,"y":31},"node2":{"id":124,"name":"Blickling","x":1394,"y":28}},{"node1":{"id":124,"name":"Blickling","x":1394,"y":28},"node2":{"id":123,"name":"Aylsham","x":1440,"y":61}},{"node1":{"id":123,"name":"Aylsham","x":1440,"y":61},"node2":{"name":"Cawston","x":1262,"y":154,"id":21}},{"node1":{"id":123,"name":"Aylsham","x":1440,"y":61},"node2":{"id":122,"name":"Marsham","x":1454,"y":151}},{"node1":{"id":122,"name":"Marsham","x":1454,"y":151},"node2":{"id":121,"name":"Hevingham","x":1471,"y":251}},{"node1":{"name":"Cawston","x":1262,"y":154,"id":21},"node2":{"id":120,"name":"Buxton","x":1555,"y":201}},{"node1":{"id":121,"name":"Hevingham","x":1471,"y":251},"node2":{"name":"Taverham","x":1322,"y":468,"id":40}},{"node1":{"id":114,"name":"Horsford","x":1432,"y":412},"node2":{"id":125,"name":"Oulton","x":1244,"y":31}},{"node1":{"id":123,"name":"Aylsham","x":1440,"y":61},"node2":{"id":120,"name":"Buxton","x":1555,"y":201}},{"node1":{"id":121,"name":"Hevingham","x":1471,"y":251},"node2":{"id":110,"name":"Hainford","x":1531,"y":331}},{"node1":{"id":121,"name":"Hevingham","x":1471,"y":251},"node2":{"id":113,"name":"Horsham St Faith","x":1495,"y":445}},{"node1":{"id":110,"name":"Hainford","x":1531,"y":331},"node2":{"id":109,"name":"Coltishall","x":1660,"y":298}},{"node1":{"id":109,"name":"Coltishall","x":1660,"y":298},"node2":{"id":120,"name":"Buxton","x":1555,"y":201}},{"node1":{"id":109,"name":"Coltishall","x":1660,"y":298},"node2":{"id":119,"name":"Scottow","x":1711,"y":194}},{"node1":{"id":109,"name":"Coltishall","x":1660,"y":298},"node2":{"id":111,"name":"Crostwick","x":1624,"y":415}},{"node1":{"id":109,"name":"Coltishall","x":1660,"y":298},"node2":{"id":108,"name":"Hoveton","x":1781,"y":345}},{"node1":{"id":119,"name":"Scottow","x":1711,"y":194},"node2":{"id":126,"name":"Westwick","x":1704,"y":81}},{"node1":{"id":119,"name":"Scottow","x":1711,"y":194},"node2":{"id":127,"name":"Worstead","x":1777,"y":114}},{"node1":{"id":127,"name":"Worstead","x":1777,"y":114},"node2":{"id":128,"name":"East Rutton","x":1871,"y":62}},{"node1":{"id":126,"name":"Westwick","x":1704,"y":81},"node2":{"id":128,"name":"East Rutton","x":1871,"y":62}},{"node1":{"id":128,"name":"East Rutton","x":1871,"y":62},"node2":{"id":129,"name":"Dilham","x":1860,"y":148}},{"node1":{"id":129,"name":"Dilham","x":1860,"y":148},"node2":{"id":107,"name":"Horning","x":1881,"y":371}},{"node1":{"id":129,"name":"Dilham","x":1860,"y":148},"node2":{"id":108,"name":"Hoveton","x":1781,"y":345}},{"node1":{"id":108,"name":"Hoveton","x":1781,"y":345},"node2":{"id":107,"name":"Horning","x":1881,"y":371}},{"node1":{"id":119,"name":"Scottow","x":1711,"y":194},"node2":{"id":108,"name":"Hoveton","x":1781,"y":345}},{"node1":{"id":127,"name":"Worstead","x":1777,"y":114},"node2":{"id":129,"name":"Dilham","x":1860,"y":148}},{"node1":{"id":120,"name":"Buxton","x":1555,"y":201},"node2":{"id":119,"name":"Scottow","x":1711,"y":194}},{"node1":{"id":110,"name":"Hainford","x":1531,"y":331},"node2":{"id":113,"name":"Horsham St Faith","x":1495,"y":445}},{"node1":{"id":113,"name":"Horsham St Faith","x":1495,"y":445},"node2":{"id":112,"name":"Spixworth","x":1580,"y":442}},{"node1":{"id":112,"name":"Spixworth","x":1580,"y":442},"node2":{"id":111,"name":"Crostwick","x":1624,"y":415}},{"node1":{"id":111,"name":"Crostwick","x":1624,"y":415},"node2":{"id":105,"name":"Rackheath","x":1682,"y":475}},{"node1":{"id":112,"name":"Spixworth","x":1580,"y":442},"node2":{"id":105,"name":"Rackheath","x":1682,"y":475}},{"node1":{"id":105,"name":"Rackheath","x":1682,"y":475},"node2":{"id":104,"name":"Thorpe End","x":1705,"y":565}},{"node1":{"id":105,"name":"Rackheath","x":1682,"y":475},"node2":{"id":106,"name":"Wroxham","x":1755,"y":390}},{"node1":{"id":106,"name":"Wroxham","x":1755,"y":390},"node2":{"id":108,"name":"Hoveton","x":1781,"y":345}},{"node1":{"id":106,"name":"Wroxham","x":1755,"y":390},"node2":{"id":102,"name":"Salhouse","x":1775,"y":480}},{"node1":{"id":104,"name":"Thorpe End","x":1705,"y":565},"node2":{"id":103,"name":"Little Plumstead","x":1805,"y":537}},{"node1":{"id":103,"name":"Little Plumstead","x":1805,"y":537},"node2":{"id":101,"name":"South Walsham","x":1937,"y":518}},{"node1":{"id":101,"name":"South Walsham","x":1937,"y":518},"node2":{"id":102,"name":"Salhouse","x":1775,"y":480}},{"node1":{"id":102,"name":"Salhouse","x":1775,"y":480},"node2":{"id":104,"name":"Thorpe End","x":1705,"y":565}},{"node1":{"id":102,"name":"Salhouse","x":1775,"y":480},"node2":{"id":105,"name":"Rackheath","x":1682,"y":475}},{"node1":{"id":51,"name":"Beachamwell","x":18,"y":635},"node2":{"name":"Swaffham","x":266,"y":557,"id":50}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"id":52,"name":"Cockley Cley","x":177,"y":718}},{"node1":{"id":51,"name":"Beachamwell","x":18,"y":635},"node2":{"name":"Narbourough","x":79,"y":440,"id":41}},{"node1":{"id":52,"name":"Cockley Cley","x":177,"y":718},"node2":{"id":53,"name":"Gooderstone","x":28,"y":791}},{"node1":{"id":53,"name":"Gooderstone","x":28,"y":791},"node2":{"id":54,"name":"Foulden","x":100,"y":880}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"id":58,"name":"North Pickenham","x":398,"y":631}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"id":59,"name":"South Pickenham","x":377,"y":725}},{"node1":{"name":"Swaffham","x":266,"y":557,"id":50},"node2":{"id":57,"name":"Bodney","x":271,"y":892}},{"node1":{"id":58,"name":"North Pickenham","x":398,"y":631},"node2":{"name":"Necton","x":439,"y":548,"id":43}},{"node1":{"id":58,"name":"North Pickenham","x":398,"y":631},"node2":{"id":64,"name":"Bradenham","x":580,"y":608}},{"node1":{"id":58,"name":"North Pickenham","x":398,"y":631},"node2":{"id":60,"name":"Ashill","x":464,"y":742}},{"node1":{"id":59,"name":"South Pickenham","x":377,"y":725},"node2":{"id":60,"name":"Ashill","x":464,"y":742}},{"node1":{"id":60,"name":"Ashill","x":464,"y":742},"node2":{"id":64,"name":"Bradenham","x":580,"y":608}},{"node1":{"id":60,"name":"Ashill","x":464,"y":742},"node2":{"name":"Necton","x":439,"y":548,"id":43}},{"node1":{"id":60,"name":"Ashill","x":464,"y":742},"node2":{"id":62,"name":"Saham Toney","x":504,"y":811}},{"node1":{"id":62,"name":"Saham Toney","x":504,"y":811},"node2":{"id":63,"name":"Watton","x":550,"y":848}},{"node1":{"id":62,"name":"Saham Toney","x":504,"y":811},"node2":{"id":61,"name":"Little Cressingham","x":424,"y":864}},{"node1":{"id":61,"name":"Little Cressingham","x":424,"y":864},"node2":{"id":63,"name":"Watton","x":550,"y":848}},{"node1":{"id":61,"name":"Little Cressingham","x":424,"y":864},"node2":{"id":57,"name":"Bodney","x":271,"y":892}},{"node1":{"id":54,"name":"Foulden","x":100,"y":880},"node2":{"id":56,"name":"Mundford","x":191,"y":1052}},{"node1":{"id":56,"name":"Mundford","x":191,"y":1052},"node2":{"id":55,"name":"Ickburgh","x":221,"y":994}},{"node1":{"id":55,"name":"Ickburgh","x":221,"y":994},"node2":{"id":57,"name":"Bodney","x":271,"y":892}},{"node1":{"id":55,"name":"Ickburgh","x":221,"y":994},"node2":{"id":52,"name":"Cockley Cley","x":177,"y":718}},{"node1":{"id":69,"name":"Tottingham","x":481,"y":1000},"node2":{"id":57,"name":"Bodney","x":271,"y":892}},{"node1":{"id":69,"name":"Tottingham","x":481,"y":1000},"node2":{"id":67,"name":"Griston","x":614,"y":912}},{"node1":{"id":67,"name":"Griston","x":614,"y":912},"node2":{"id":63,"name":"Watton","x":550,"y":848}},{"node1":{"id":63,"name":"Watton","x":550,"y":848},"node2":{"id":65,"name":"Shipdham","x":682,"y":645}},{"node1":{"id":65,"name":"Shipdham","x":682,"y":645},"node2":{"id":64,"name":"Bradenham","x":580,"y":608}},{"node1":{"id":63,"name":"Watton","x":550,"y":848},"node2":{"id":74,"name":"Carbrooke","x":654,"y":785}},{"node1":{"id":63,"name":"Watton","x":550,"y":848},"node2":{"id":72,"name":"Hingham","x":874,"y":811}},{"node1":{"id":72,"name":"Hingham","x":874,"y":811},"node2":{"id":71,"name":"Great Ellingham","x":862,"y":961}},{"node1":{"id":71,"name":"Great Ellingham","x":862,"y":961},"node2":{"id":70,"name":"Rockland All Saints","x":760,"y":971}},{"node1":{"id":70,"name":"Rockland All Saints","x":760,"y":971},"node2":{"id":68,"name":"Caston","x":680,"y":948}},{"node1":{"id":68,"name":"Caston","x":680,"y":948},"node2":{"id":67,"name":"Griston","x":614,"y":912}},{"node1":{"id":63,"name":"Watton","x":550,"y":848},"node2":{"id":70,"name":"Rockland All Saints","x":760,"y":971}},{"node1":{"id":74,"name":"Carbrooke","x":654,"y":785},"node2":{"id":65,"name":"Shipdham","x":682,"y":645}},{"node1":{"id":65,"name":"Shipdham","x":682,"y":645},"node2":{"id":66,"name":"Cranworth","x":761,"y":727}},{"node1":{"id":66,"name":"Cranworth","x":761,"y":727},"node2":{"id":72,"name":"Hingham","x":874,"y":811}},{"node1":{"id":72,"name":"Hingham","x":874,"y":811},"node2":{"id":77,"name":"Garvestone","x":880,"y":662}},{"node1":{"id":77,"name":"Garvestone","x":880,"y":662},"node2":{"id":78,"name":"Whinburgh","x":850,"y":600}},{"node1":{"id":78,"name":"Whinburgh","x":850,"y":600},"node2":{"name":"Yaxham","x":850,"y":548,"id":35}},{"node1":{"id":65,"name":"Shipdham","x":682,"y":645},"node2":{"name":"Dereham","x":790,"y":462,"id":34}},{"node1":{"id":71,"name":"Great Ellingham","x":862,"y":961},"node2":{"id":83,"name":"Attleborough","x":951,"y":1028}},{"node1":{"id":83,"name":"Attleborough","x":951,"y":1028},"node2":{"id":76,"name":"Wymondham","x":1155,"y":855}},{"node1":{"id":83,"name":"Attleborough","x":951,"y":1028},"node2":{"id":84,"name":"Spooner Row","x":1110,"y":975}},{"node1":{"id":84,"name":"Spooner Row","x":1110,"y":975},"node2":{"id":85,"name":"Black Carr","x":1087,"y":1031}},{"node1":{"id":85,"name":"Black Carr","x":1087,"y":1031},"node2":{"id":87,"name":"Tacolneston","x":1245,"y":1042}},{"node1":{"id":84,"name":"Spooner Row","x":1110,"y":975},"node2":{"id":76,"name":"Wymondham","x":1155,"y":855}},{"node1":{"id":71,"name":"Great Ellingham","x":862,"y":961},"node2":{"id":73,"name":"Deopham","x":958,"y":880}},{"node1":{"id":73,"name":"Deopham","x":958,"y":880},"node2":{"id":72,"name":"Hingham","x":874,"y":811}},{"node1":{"id":73,"name":"Deopham","x":958,"y":880},"node2":{"id":75,"name":"Wicklewood","x":1034,"y":760}},{"node1":{"id":75,"name":"Wicklewood","x":1034,"y":760},"node2":{"id":77,"name":"Garvestone","x":880,"y":662}},{"node1":{"id":75,"name":"Wicklewood","x":1034,"y":760},"node2":{"id":79,"name":"Barnham Broom","x":1067,"y":657}},{"node1":{"id":75,"name":"Wicklewood","x":1034,"y":760},"node2":{"id":80,"name":"Barford","x":1174,"y":662}},{"node1":{"id":75,"name":"Wicklewood","x":1034,"y":760},"node2":{"id":76,"name":"Wymondham","x":1155,"y":855}},{"node1":{"id":75,"name":"Wicklewood","x":1034,"y":760},"node2":{"id":82,"name":"Hethersett","x":1287,"y":735}},{"node1":{"id":76,"name":"Wymondham","x":1155,"y":855},"node2":{"id":116,"name":"Cringleford","x":1401,"y":737}},{"node1":{"id":76,"name":"Wymondham","x":1155,"y":855},"node2":{"id":82,"name":"Hethersett","x":1287,"y":735}},{"node1":{"id":76,"name":"Wymondham","x":1155,"y":855},"node2":{"id":86,"name":"Hethel","x":1321,"y":908}},{"node1":{"id":76,"name":"Wymondham","x":1155,"y":855},"node2":{"id":88,"name":"Hapton","x":1348,"y":1008}},{"node1":{"id":76,"name":"Wymondham","x":1155,"y":855},"node2":{"id":87,"name":"Tacolneston","x":1245,"y":1042}},{"node1":{"id":87,"name":"Tacolneston","x":1245,"y":1042},"node2":{"id":88,"name":"Hapton","x":1348,"y":1008}},{"node1":{"id":87,"name":"Tacolneston","x":1245,"y":1042},"node2":{"id":86,"name":"Hethel","x":1321,"y":908}},{"node1":{"id":86,"name":"Hethel","x":1321,"y":908},"node2":{"id":88,"name":"Hapton","x":1348,"y":1008}},{"node1":{"id":88,"name":"Hapton","x":1348,"y":1008},"node2":{"id":90,"name":"Tasburgh","x":1428,"y":1041}},{"node1":{"id":90,"name":"Tasburgh","x":1428,"y":1041},"node2":{"id":91,"name":"Newton Flotman","x":1462,"y":957}},{"node1":{"id":91,"name":"Newton Flotman","x":1462,"y":957},"node2":{"id":92,"name":"Stoke Holy Cross","x":1534,"y":858}},{"node1":{"id":86,"name":"Hethel","x":1321,"y":908},"node2":{"id":89,"name":"Mulbarton","x":1408,"y":871}},{"node1":{"id":89,"name":"Mulbarton","x":1408,"y":871},"node2":{"id":116,"name":"Cringleford","x":1401,"y":737}},{"node1":{"id":89,"name":"Mulbarton","x":1408,"y":871},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":89,"name":"Mulbarton","x":1408,"y":871},"node2":{"id":118,"name":"Trowse Newton","x":1581,"y":698}},{"node1":{"id":92,"name":"Stoke Holy Cross","x":1534,"y":858},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":92,"name":"Stoke Holy Cross","x":1534,"y":858},"node2":{"id":118,"name":"Trowse Newton","x":1581,"y":698}},{"node1":{"id":92,"name":"Stoke Holy Cross","x":1534,"y":858},"node2":{"id":116,"name":"Cringleford","x":1401,"y":737}},{"node1":{"id":82,"name":"Hethersett","x":1287,"y":735},"node2":{"id":116,"name":"Cringleford","x":1401,"y":737}},{"node1":{"id":79,"name":"Barnham Broom","x":1067,"y":657},"node2":{"name":"Honingham","x":1126,"y":537,"id":38}},{"node1":{"id":80,"name":"Barford","x":1174,"y":662},"node2":{"id":81,"name":"Bawburgh","x":1302,"y":631}},{"node1":{"id":80,"name":"Barford","x":1174,"y":662},"node2":{"id":82,"name":"Hethersett","x":1287,"y":735}},{"node1":{"id":81,"name":"Bawburgh","x":1302,"y":631},"node2":{"id":116,"name":"Cringleford","x":1401,"y":737}},{"node1":{"id":116,"name":"Cringleford","x":1401,"y":737},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":81,"name":"Bawburgh","x":1302,"y":631},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":81,"name":"Bawburgh","x":1302,"y":631},"node2":{"id":115,"name":"Costessey","x":1352,"y":550}},{"node1":{"id":81,"name":"Bawburgh","x":1302,"y":631},"node2":{"name":"Easton","x":1256,"y":547,"id":49}},{"node1":{"name":"Easton","x":1256,"y":547,"id":49},"node2":{"id":115,"name":"Costessey","x":1352,"y":550}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":93,"name":"Poringland","x":1650,"y":855}},{"node1":{"id":93,"name":"Poringland","x":1650,"y":855},"node2":{"id":94,"name":"Brooke","x":1705,"y":934}},{"node1":{"id":94,"name":"Brooke","x":1705,"y":934},"node2":{"id":96,"name":"Sisland","x":1838,"y":977}},{"node1":{"id":94,"name":"Brooke","x":1705,"y":934},"node2":{"id":95,"name":"Bergh Apton","x":1757,"y":884}},{"node1":{"id":96,"name":"Sisland","x":1838,"y":977},"node2":{"id":95,"name":"Bergh Apton","x":1757,"y":884}},{"node1":{"id":95,"name":"Bergh Apton","x":1757,"y":884},"node2":{"id":118,"name":"Trowse Newton","x":1581,"y":698}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":97,"name":"Rockland St Mary","x":1807,"y":777}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":104,"name":"Thorpe End","x":1705,"y":565}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":98,"name":"Brundall","x":1831,"y":662}},{"node1":{"id":118,"name":"Trowse Newton","x":1581,"y":698},"node2":{"id":99,"name":"Blofield","x":1852,"y":612}},{"node1":{"id":99,"name":"Blofield","x":1852,"y":612},"node2":{"id":100,"name":"Lingwood","x":1932,"y":650}},{"node1":{"id":100,"name":"Lingwood","x":1932,"y":650},"node2":{"id":98,"name":"Brundall","x":1831,"y":662}},{"node1":{"id":98,"name":"Brundall","x":1831,"y":662},"node2":{"id":99,"name":"Blofield","x":1852,"y":612}},{"node1":{"id":99,"name":"Blofield","x":1852,"y":612},"node2":{"id":103,"name":"Little Plumstead","x":1805,"y":537}},{"node1":{"id":99,"name":"Blofield","x":1852,"y":612},"node2":{"id":101,"name":"South Walsham","x":1937,"y":518}},{"node1":{"id":100,"name":"Lingwood","x":1932,"y":650},"node2":{"id":101,"name":"South Walsham","x":1937,"y":518}},{"node1":{"id":115,"name":"Costessey","x":1352,"y":550},"node2":{"id":117,"name":"Norwich","x":1528,"y":618}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":113,"name":"Horsham St Faith","x":1495,"y":445}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":114,"name":"Horsford","x":1432,"y":412}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"name":"Taverham","x":1322,"y":468,"id":40}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":112,"name":"Spixworth","x":1580,"y":442}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":105,"name":"Rackheath","x":1682,"y":475}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":104,"name":"Thorpe End","x":1705,"y":565}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":99,"name":"Blofield","x":1852,"y":612}},{"node1":{"id":117,"name":"Norwich","x":1528,"y":618},"node2":{"id":98,"name":"Brundall","x":1831,"y":662}},{"node1":{"name":"Taverham","x":1322,"y":468,"id":40},"node2":{"id":115,"name":"Costessey","x":1352,"y":550}},{"node1":{"name":"Taverham","x":1322,"y":468,"id":40},"node2":{"id":114,"name":"Horsford","x":1432,"y":412}},{"node1":{"id":114,"name":"Horsford","x":1432,"y":412},"node2":{"id":113,"name":"Horsham St Faith","x":1495,"y":445}}];
+
+        let places = [];
+        let placeData = [{"name":"Harpley","x":181,"y":40,"id":1},{"name":"Little Massingham","x":208,"y":104,"id":2},{"name":"Great Massingham","x":216,"y":148,"id":3},{"name":"West Raynham","x":498,"y":81,"id":4},{"name":"Weasenham St Peter","x":383,"y":179,"id":5},{"name":"Rougham","x":283,"y":220,"id":6},{"name":"Gayton Thorpe","x":30,"y":273,"id":7},{"name":"Litcham","x":485,"y":318,"id":8},{"name":"Tittleshall","x":507,"y":204,"id":9},{"name":"Mileham","x":581,"y":264,"id":10},{"name":"East Bilney","x":681,"y":268,"id":11},{"name":"Whissonet","x":532,"y":126,"id":12},{"name":"Gateley","x":667,"y":127,"id":13},{"name":"Guist","x":831,"y":83,"id":14},{"name":"Twyford","x":896,"y":137,"id":15},{"name":"Foulsham","x":947,"y":104,"id":16},{"name":"Foxley","x":956,"y":221,"id":17},{"name":"North Elmham","x":789,"y":232,"id":18},{"name":"Reepham","x":1147,"y":191,"id":19},{"name":"Salle","x":1190,"y":135,"id":20},{"name":"Cawston","x":1262,"y":154,"id":21},{"name":"Swannington","x":1218,"y":301,"id":22},{"name":"Lenwade","x":1152,"y":323,"id":23},{"name":"Lyng","x":1044,"y":336,"id":24},{"name":"Elsing","x":1026,"y":374,"id":25},{"name":"Swanton Morley","x":895,"y":342,"id":26},{"name":"Hoe","x":785,"y":367,"id":27},{"name":"Beetley","x":748,"y":337,"id":28},{"name":"Longham","x":629,"y":366,"id":29},{"name":"Beeston","x":559,"y":395,"id":30},{"name":"Great Dunham","x":432,"y":420,"id":31},{"name":"Little Fransham","x":528,"y":486,"id":32},{"name":"Scarning","x":649,"y":492,"id":33},{"name":"Dereham","x":790,"y":462,"id":34},{"name":"Yaxham","x":850,"y":548,"id":35},{"name":"Mattishall","x":996,"y":540,"id":36},{"name":"Hockering","x":1049,"y":481,"id":37},{"name":"Honingham","x":1126,"y":537,"id":38},{"name":"Weston Longville","x":1186,"y":409,"id":39},{"name":"Taverham","x":1322,"y":468,"id":40},{"name":"Narbourough","x":79,"y":440,"id":41},{"name":"Great Ryeburgh","x":708,"y":25,"id":42},{"name":"Necton","x":439,"y":548,"id":43},{"name":"West Acre","x":141,"y":372,"id":44},{"name":"Castle Acre","x":260,"y":368,"id":45},{"name":"South Acre","x":241,"y":409,"id":46},{"name":"Toftrees","x":553,"y":15,"id":47},{"name":"Wood Norton","x":851,"y":21,"id":48},{"name":"Easton","x":1256,"y":547,"id":49},{"name":"Swaffham","x":266,"y":557,"id":50},{"id":51,"name":"Beachamwell","x":18,"y":635},{"id":52,"name":"Cockley Cley","x":177,"y":718},{"id":53,"name":"Gooderstone","x":28,"y":791},{"id":54,"name":"Foulden","x":100,"y":880},{"id":55,"name":"Ickburgh","x":221,"y":994},{"id":56,"name":"Mundford","x":191,"y":1052},{"id":57,"name":"Bodney","x":271,"y":892},{"id":58,"name":"North Pickenham","x":398,"y":631},{"id":59,"name":"South Pickenham","x":377,"y":725},{"id":60,"name":"Ashill","x":464,"y":742},{"id":61,"name":"Little Cressingham","x":424,"y":864},{"id":62,"name":"Saham Toney","x":504,"y":811},{"id":63,"name":"Watton","x":550,"y":848},{"id":64,"name":"Bradenham","x":580,"y":608},{"id":65,"name":"Shipdham","x":682,"y":645},{"id":66,"name":"Cranworth","x":761,"y":727},{"id":67,"name":"Griston","x":614,"y":912},{"id":68,"name":"Caston","x":680,"y":948},{"id":69,"name":"Tottingham","x":481,"y":1000},{"id":70,"name":"Rockland All Saints","x":760,"y":971},{"id":71,"name":"Great Ellingham","x":862,"y":961},{"id":72,"name":"Hingham","x":874,"y":811},{"id":73,"name":"Deopham","x":958,"y":880},{"id":74,"name":"Carbrooke","x":654,"y":785},{"id":75,"name":"Wicklewood","x":1034,"y":760},{"id":76,"name":"Wymondham","x":1155,"y":855},{"id":77,"name":"Garvestone","x":880,"y":662},{"id":78,"name":"Whinburgh","x":850,"y":600},{"id":79,"name":"Barnham Broom","x":1067,"y":657},{"id":80,"name":"Barford","x":1174,"y":662},{"id":81,"name":"Bawburgh","x":1302,"y":631},{"id":82,"name":"Hethersett","x":1287,"y":735},{"id":83,"name":"Attleborough","x":951,"y":1028},{"id":84,"name":"Spooner Row","x":1110,"y":975},{"id":85,"name":"Black Carr","x":1087,"y":1031},{"id":86,"name":"Hethel","x":1321,"y":908},{"id":87,"name":"Tacolneston","x":1245,"y":1042},{"id":88,"name":"Hapton","x":1348,"y":1008},{"id":89,"name":"Mulbarton","x":1408,"y":871},{"id":90,"name":"Tasburgh","x":1428,"y":1041},{"id":91,"name":"Newton Flotman","x":1462,"y":957},{"id":92,"name":"Stoke Holy Cross","x":1534,"y":858},{"id":93,"name":"Poringland","x":1650,"y":855},{"id":94,"name":"Brooke","x":1705,"y":934},{"id":95,"name":"Bergh Apton","x":1757,"y":884},{"id":96,"name":"Sisland","x":1838,"y":977},{"id":97,"name":"Rockland St Mary","x":1807,"y":777},{"id":98,"name":"Brundall","x":1831,"y":662},{"id":99,"name":"Blofield","x":1852,"y":612},{"id":100,"name":"Lingwood","x":1932,"y":650},{"id":101,"name":"South Walsham","x":1937,"y":518},{"id":102,"name":"Salhouse","x":1775,"y":480},{"id":103,"name":"Little Plumstead","x":1805,"y":537},{"id":104,"name":"Thorpe End","x":1705,"y":565},{"id":105,"name":"Rackheath","x":1682,"y":475},{"id":106,"name":"Wroxham","x":1755,"y":390},{"id":107,"name":"Horning","x":1881,"y":371},{"id":108,"name":"Hoveton","x":1781,"y":345},{"id":109,"name":"Coltishall","x":1660,"y":298},{"id":110,"name":"Hainford","x":1531,"y":331},{"id":111,"name":"Crostwick","x":1624,"y":415},{"id":112,"name":"Spixworth","x":1580,"y":442},{"id":113,"name":"Horsham St Faith","x":1495,"y":445},{"id":114,"name":"Horsford","x":1432,"y":412},{"id":115,"name":"Costessey","x":1352,"y":550},{"id":116,"name":"Cringleford","x":1401,"y":737},{"id":117,"name":"Norwich","x":1528,"y":618},{"id":118,"name":"Trowse Newton","x":1581,"y":698},{"id":119,"name":"Scottow","x":1711,"y":194},{"id":120,"name":"Buxton","x":1555,"y":201},{"id":121,"name":"Hevingham","x":1471,"y":251},{"id":122,"name":"Marsham","x":1454,"y":151},{"id":123,"name":"Aylsham","x":1440,"y":61},{"id":124,"name":"Blickling","x":1394,"y":28},{"id":125,"name":"Oulton","x":1244,"y":31},{"id":126,"name":"Westwick","x":1704,"y":81},{"id":127,"name":"Worstead","x":1777,"y":114},{"id":128,"name":"East Rutton","x":1871,"y":62},{"id":129,"name":"Dilham","x":1860,"y":148}];
+
+        const scale = Math.min( window.innerWidth / 2000 , window.innerHeight / 1100 );
+        const canvas = document.getElementById("map");
+        const ctx = canvas.getContext("2d");
+        const atmosphere = document.getElementById("atmosphere");
+
+        canvas.width = Math.floor(2000 * scale);
+        canvas.height = Math.floor(1100 * scale);
+        canvas.style.width = `${canvas.width}px`;
+        canvas.style.height = `${canvas.height}px`;
+        canvas.style.margin = `0 auto 0 auto`;
+
+        // The forest (F)
+        let F = {places: [], edges: []};
+        let animator = false;
+        let firstPlay = true;
+
+        atmosphere.addEventListener("play", ()=>{
+            document.getElementById("playtostart").style.display = "none";
+            document.getElementById("restart").style.display = "inline-block";
+            if(firstPlay) {
+                firstPlay = false;
+                setTimeout(()=>{primStep(1)}, 3000);
+            } else {
+                primStep(1);
+            }
+        });
+
+        let resizeId = false;
+        window.addEventListener("resize", ()=>{
+            clearTimeout(resizeId);
+            resizeId = setTimeout(location.reload(), 1000);
+        });
+
+        atmosphere.addEventListener("pause", ()=>{
+            clearTimeout(animator);
+        });
+
+        document.addEventListener("DOMContentLoaded", ()=> {
+            // Create the nodes / place instances
+            placeData.forEach((place)=>{
+                places.push(new Place(place.name, place.x, place.y, place.id));
+            });
+            // Create the edges with their nodes
+            edgeData.forEach((edge)=>{
+                edges.push(new Edge(places[edge.node1.id-1], places[edge.node2.id-1], edges.length+1 ));
+            });
+            // Update nodes with their edges
+            edges.forEach((edge)=>{
+                edge.node1.edges.push(edge);
+                edge.node2.edges.push(edge);
+            });
+            // First pick a random (first) place to start with...
+            let starter = Math.floor(Math.random()*places.length);
+            places[starter].mstReached = true;
+            places[starter].mstUnreached = false;
+            draw();
+        });
+
+        /* The Prim algorithm */
+        function primStep(n) {
+            for(let l = 0; l < n; l+=1) {
+                let lowestCost = 99999;
+                let lowestEdge = null;
+
+                // Find the lowest cost edge from any reached node to any unreached node ...
+                places.forEach((reachedplace)=>{
+                    if(reachedplace.mstReached) {
+                        reachedplace.edges.forEach((edge)=>{
+                            // Which end of the edge is the current reached node?
+                            if(edge.node1.id === reachedplace.id) {
+                                if(edge.node2.mstUnreached) {
+                                    if(edge.distance < lowestCost) {
+                                        lowestCost = edge.distance;
+                                        lowestEdge = edge;
+                                    }
+                                }
+                            } else {
+                                if(edge.node1.mstUnreached) {
+                                    if(edge.distance < lowestCost) {
+                                        lowestCost = edge.distance;
+                                        lowestEdge = edge;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+
+                if(lowestEdge !== null && lowestEdge.node1 !== null && lowestEdge.node2 !== null) {
+                    F.edges.push(lowestEdge);
+                    lowestEdge.node2.mstReached = true;
+                    lowestEdge.node2.mstUnreached = false;
+                    lowestEdge.node1.mstReached = true;
+                    lowestEdge.node1.mstUnreached = false;
+                    draw();
+                    animator = setTimeout(()=>{ primStep(1); }, 230);
+                } else {
+                    console.log("Prim's has finished");
+                }
+            }
+        }
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawEdges();
+            drawPlaces();
+            //drawDistances();
+            drawF();
+        }
+        /* Draw the F edges, the final MST */
+        function drawF() {
+            F.edges.forEach((edge)=>{
+                let fromX = Math.floor(edge.node1.x * scale);
+                let fromY = Math.floor(edge.node1.y * scale);
+                let toX = Math.floor(edge.node2.x * scale);
+                let toY = Math.floor(edge.node2.y * scale);
+                ctx.beginPath();
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 4;
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(toX, toY);
+                ctx.stroke();
+            });
+        }
+        /* Draw the places */
+        function drawPlaces() {
+            places.forEach((place)=>{
+                let placeX = Math.floor(place.x * scale) - 5;
+                let placeY = Math.floor(place.y * scale) - 5;
+                ctx.fillStyle = (place.mstReached) ? "red" : "grey";
+                ctx.fillRect(placeX, placeY, 10, 10);
+            });
+        }
+        /* Draw the edges - lines connecting the places */
+        function drawEdges() {
+            edges.forEach((edge)=>{
+                let fromX = Math.floor(edge.node1.x * scale);
+                let fromY = Math.floor(edge.node1.y * scale);
+                let toX = Math.floor(edge.node2.x * scale);
+                let toY = Math.floor(edge.node2.y * scale);
+                if(edge.node1.mstReached && edge.node2.mstReached) {
+                    // It's a dropped connection between two reached nodes...
+                    // ctx.strokeStyle = "white";
+                    // ctx.lineWidth = 1;
+                } else if(edge.node1.mstReached || edge.node2.mstReached) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "blue";
+                    ctx.lineWidth = 2;
+                    ctx.moveTo(fromX, fromY);
+                    ctx.lineTo(toX, toY);
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "grey";
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(fromX, fromY);
+                    ctx.lineTo(toX, toY);
+                    ctx.stroke();
+                }
+
+            });
+        }
+        /* Draw the distance box on top of the edge */
+        function drawDistances() {
+            edges.forEach((edge)=>{
+                let cx = (( edge.node1.x * scale + edge.node2.x * scale ) / 2) - 15;
+                let cy = (( edge.node1.y * scale + edge.node2.y * scale ) / 2) - 7;
+                ctx.fillStyle = "grey";
+                ctx.fillRect(cx, cy, 20, 10);
+                ctx.font = "10px Arial";
+                ctx.fillStyle = "white";
+                ctx.fillText(`${Math.floor(edge.distance)}`, cx+1, cy+8);
+
+            });
+        }
+
+    </script>
+</body>
+</html>
