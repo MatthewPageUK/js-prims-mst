@@ -1,2 +1,4 @@
 # js-prims-mst
- A Javascript example of Prims MST algorithm
+
+Old Javascript demo of Prims MST with a visual map to represent the tree.
+
